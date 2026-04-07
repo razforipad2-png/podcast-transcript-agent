@@ -3,6 +3,7 @@ audioop-lts
 beautifulsoup4
 feedparser
 flask
+flask-cors
 openai
 pydub
 python-dotenv
