@@ -1,0 +1,9 @@
+anthropic
+beautifulsoup4
+feedparser
+openai
+pydub
+python-dotenv
+requests
+tavily-python
+youtube-transcript-api
