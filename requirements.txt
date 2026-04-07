@@ -1,6 +1,7 @@
 anthropic
 beautifulsoup4
 feedparser
+flask
 openai
 pydub
 python-dotenv
