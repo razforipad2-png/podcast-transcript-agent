@@ -1,4 +1,5 @@
 anthropic
+audioop-lts
 beautifulsoup4
 feedparser
 flask
