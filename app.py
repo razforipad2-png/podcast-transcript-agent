@@ -13,7 +13,9 @@ CORS(app)
 API_SECRET_KEY = os.environ.get("API_SECRET_KEY", "")
 
 def check_auth():
-    return request.headers.get("X-API-Key") == API_SECRET_KEY
+    incoming = request.headers.get("X-API-Key", "")
+    print(f"AUTH CHECK: incoming='{incoming}' expected='{API_SECRET_KEY}'")
+    return incoming == API_SECRET_KEY
 
 @app.route("/health", methods=["GET"])
 def health():
