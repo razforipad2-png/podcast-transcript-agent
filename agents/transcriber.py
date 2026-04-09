@@ -14,17 +14,8 @@ from tools.transcript import validate_and_score
 
 _AUDIO_EXTS       = re.compile(r'\.(mp3|m4a|ogg|wav|aac|opus|flac|mp4|webm)(?:\?|$)', re.IGNORECASE)
 _SIZE_LIMIT       = 24 * 1024 * 1024   # stay under Whisper's 25 MB hard limit
-_CHUNK_MS         = 10 * 60 * 1000     # 10-minute chunks
+_CHUNK_MS         = 4 * 60 * 1000      # 4-minute chunks
 _DOWNLOAD_TIMEOUT = 180                 # seconds
-
-# Add winget ffmpeg bin dir to PATH if shell hasn't been restarted yet
-_FFMPEG_BIN = (
-    r"C:\Users\user\AppData\Local\Microsoft\WinGet\Packages"
-    r"\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe"
-    r"\ffmpeg-8.1-full_build\bin"
-)
-if os.path.isdir(_FFMPEG_BIN) and _FFMPEG_BIN not in os.environ.get("PATH", ""):
-    os.environ["PATH"] = _FFMPEG_BIN + os.pathsep + os.environ["PATH"]
 
 
 def _ext_from_url(url: str) -> str:
