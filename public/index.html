@@ -103,9 +103,7 @@
     hideError();
     document.getElementById('submit-btn').disabled = true;
     document.getElementById('status').className = 'status visible';
-    setProgress(10, 'Searching for transcript...');
-
-    const ticker = startTicker();
+    setProgress(10, 'Starting...');
 
     try {
       const res = await fetch(RAILWAY_URL + '/transcribe', {
@@ -114,41 +112,61 @@
         body: JSON.stringify(body)
       });
 
-      clearInterval(ticker);
-
       if (res.status === 401) { showError('Wrong password'); return; }
-      if (res.status === 404) { showError('Episode not found. Try a different search or URL.'); return; }
       if (!res.ok) { showError('Something went wrong. Please try again.'); return; }
 
-      setProgress(100, 'Done — downloading file...');
-      const blob = await res.blob();
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'transcript.txt';
-      a.click();
-      setProgress(100, 'Transcript downloaded.');
+      const { job_id } = await res.json();
+      setProgress(20, 'Searching for transcript...');
+      await pollJob(job_id, password);
 
     } catch (e) {
-      clearInterval(ticker);
       showError('Connection error. Please try again.');
     } finally {
       document.getElementById('submit-btn').disabled = false;
     }
   }
 
-  function startTicker() {
+  async function pollJob(job_id, password) {
     const steps = [
-      [20, 'Looking for existing transcript...'],
-      [35, 'Checking YouTube captions...'],
-      [50, 'Finding audio via RSS feed...'],
-      [65, 'Downloading audio...'],
-      [80, 'Transcribing with Whisper...'],
+      [30, 'Looking for existing transcript...'],
+      [45, 'Checking YouTube captions...'],
+      [58, 'Finding audio via RSS feed...'],
+      [70, 'Downloading audio...'],
+      [82, 'Transcribing with Whisper...'],
       [90, 'Almost done...'],
     ];
-    let i = 0;
-    return setInterval(() => {
-      if (i < steps.length) { setProgress(steps[i][0], steps[i][1]); i++; }
-    }, 25000);
+    let step = 0;
+
+    while (true) {
+      await new Promise(r => setTimeout(r, 10000));
+
+      if (step < steps.length) {
+        setProgress(steps[step][0], steps[step][1]);
+        step++;
+      }
+
+      const res = await fetch(RAILWAY_URL + '/status/' + job_id, {
+        headers: { 'X-API-Key': password }
+      });
+      const job = await res.json();
+
+      if (job.status === 'done') {
+        setProgress(100, 'Done — downloading file...');
+        const fileRes = await fetch(RAILWAY_URL + '/result/' + job_id, {
+          headers: { 'X-API-Key': password }
+        });
+        const blob = await fileRes.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'transcript.txt';
+        a.click();
+        setProgress(100, 'Transcript downloaded.');
+        return;
+      }
+
+      if (job.status === 'not_found') { showError('Episode not found. Try a different search or URL.'); return; }
+      if (job.status === 'error') { showError('Error: ' + job.error); return; }
+    }
   }
 
   function showError(msg) {
