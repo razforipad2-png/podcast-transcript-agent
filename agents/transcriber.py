@@ -70,9 +70,11 @@ class TranscriberAgent:
         try:
             with open(path, "rb") as f:
                 result = self.client.audio.transcriptions.create(
-                    model="whisper-1", file=f,
+                    model="whisper-1",
+                    file=f,
+                    response_format="verbose_json"
                 )
-            return result.text
+            return "\n\n".join(seg["text"].strip() for seg in result.segments)
         except Exception as e:
             print(f"Whisper error: {e}")
             return None
