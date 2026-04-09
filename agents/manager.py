@@ -10,9 +10,10 @@ from agents.transcriber import TranscriberAgent
 from tools.rss import find_audio_url
 from tools.transcript import CONF_RANK
 
-_YT_URL_RE  = re.compile(r'https?://(?:www\.)?(?:youtube\.com|youtu\.be)/\S+', re.IGNORECASE)
-_SLUG_RE    = re.compile(r'[^\w\s-]')
-_OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'output')
+_YT_URL_RE          = re.compile(r'https?://(?:www\.)?(?:youtube\.com|youtu\.be)/\S+', re.IGNORECASE)
+_SLUG_RE            = re.compile(r'[^\w\s-]')
+_PODCASTADDICT_RE   = re.compile(r'https?://(?:www\.)?podcastaddict\.com/([^/]+)/episode/(\d+)', re.IGNORECASE)
+_OUTPUT_DIR         = os.path.join(os.path.dirname(__file__), '..', 'output')
 
 
 def _slugify(text: str) -> str:
@@ -87,6 +88,16 @@ class ManagerAgent:
         self.transcriber       = TranscriberAgent()
 
     def run(self, input_data: dict) -> dict:
+        # Pre-process: rewrite podcastaddict.com URLs into a search query
+        if input_data.get("mode") == "url":
+            m = _PODCASTADDICT_RE.match(input_data.get("url", ""))
+            if m:
+                show_slug  = m.group(1)                        # e.g. "drug-story"
+                episode_id = m.group(2)                        # e.g. "217329869"
+                show_name  = show_slug.replace("-", " ")       # e.g. "drug story"
+                print(f"PodcastAddict URL detected — rewriting to search: show='{show_name}' episode='{episode_id}'")
+                input_data = {"mode": "search", "show": show_name, "episode": episode_id}
+
         print(f"Manager received: {input_data}")
 
         research = self.researcher.run(input_data)
