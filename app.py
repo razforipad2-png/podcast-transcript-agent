@@ -2,6 +2,7 @@ import os
 import sys
 import uuid
 import threading
+import json
 sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
 
@@ -14,8 +15,23 @@ CORS(app)
 
 API_SECRET_KEY = os.environ.get("API_SECRET_KEY", "")
 
-# In-memory job store: job_id -> {status, saved_path, error}
-jobs = {}
+JOBS_FILE = "/tmp/jobs.json"
+
+def load_jobs():
+    try:
+        with open(JOBS_FILE, "r") as f:
+            return json.load(f)
+    except:
+        return {}
+
+def save_job(job_id, data):
+    jobs = load_jobs()
+    jobs[job_id] = data
+    with open(JOBS_FILE, "w") as f:
+        json.dump(jobs, f)
+
+def get_job(job_id):
+    return load_jobs().get(job_id)
 
 def check_auth():
     incoming = request.headers.get("X-API-Key", "")
@@ -26,13 +42,13 @@ def run_job(job_id, input_data):
         agent = ManagerAgent()
         result = agent.run(input_data)
         if result["status"] == "not_found":
-            jobs[job_id] = {"status": "not_found", "saved_path": None, "error": "Transcript not found"}
+            save_job(job_id, {"status": "not_found", "saved_path": None, "error": "Transcript not found"})
         elif not result.get("saved_path") or not os.path.exists(result["saved_path"]):
-            jobs[job_id] = {"status": "error", "saved_path": None, "error": "Transcript file not saved"}
+            save_job(job_id, {"status": "error", "saved_path": None, "error": "Transcript file not saved"})
         else:
-            jobs[job_id] = {"status": "done", "saved_path": result["saved_path"], "error": None}
+            save_job(job_id, {"status": "done", "saved_path": result["saved_path"], "error": None})
     except Exception as e:
-        jobs[job_id] = {"status": "error", "saved_path": None, "error": str(e)}
+        save_job(job_id, {"status": "error", "saved_path": None, "error": str(e)})
 
 @app.route("/health", methods=["GET"])
 def health():
@@ -52,7 +68,7 @@ def transcribe():
     else:
         return jsonify({"error": "Provide either 'url' or 'show'+'episode'"}), 400
     job_id = str(uuid.uuid4())
-    jobs[job_id] = {"status": "running", "saved_path": None, "error": None}
+    save_job(job_id, {"status": "running", "saved_path": None, "error": None})
     thread = threading.Thread(target=run_job, args=(job_id, input_data))
     thread.daemon = True
     thread.start()
@@ -62,7 +78,7 @@ def transcribe():
 def status(job_id):
     if not check_auth():
         return jsonify({"error": "Unauthorized"}), 401
-    job = jobs.get(job_id)
+    job = get_job(job_id)
     if not job:
         return jsonify({"error": "Job not found"}), 404
     return jsonify(job)
@@ -71,7 +87,7 @@ def status(job_id):
 def result(job_id):
     if not check_auth():
         return jsonify({"error": "Unauthorized"}), 401
-    job = jobs.get(job_id)
+    job = get_job(job_id)
     if not job:
         return jsonify({"error": "Job not found"}), 404
     if job["status"] != "done":
