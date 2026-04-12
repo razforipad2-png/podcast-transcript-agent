@@ -74,7 +74,7 @@ class TranscriberAgent:
                     file=f,
                     response_format="verbose_json"
                 )
-            return "\n\n".join(seg["text"].strip() for seg in result.segments)
+            return "\n\n".join(seg.text.strip() for seg in result.segments)
         except Exception as e:
             print(f"Whisper error: {e}")
             return None
